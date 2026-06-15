@@ -310,7 +310,8 @@
 const E = {
   BOSLUK:0, KUM:1, SU:2, ATES:3, AHSAP:4, TAS:5,
   LAV:6, BUZ:7, BITKI:8, KOMUR:9, TOZ:10, ASIT:11,
-  KAR:12, KUL:13, DUMAN:14, BUHAR:15
+  KAR:12, KUL:13, DUMAN:14, BUHAR:15,
+  BENZIN:16, GAZ:17, DINAMIT:18, TUZ:19
 };
 
 // Kullanıcıya gösterilen elementler (sıralı)
@@ -329,6 +330,10 @@ const EL_DEFS = [
   { id:E.ASIT,   ad:'Asit',   renk:[100,220,60],    kategori:'sıvı' },
   { id:E.KAR,    ad:'Kar',    renk:[220,232,245],   kategori:'toz'  },
   { id:E.KUL,    ad:'Kül',    renk:[75,70,80],      kategori:'toz'  },
+  { id:E.BENZIN, ad:'Benzin', renk:[200,135,15],    kategori:'sıvı' },
+  { id:E.GAZ,    ad:'Gaz',    renk:[115,195,95],    kategori:'gaz'  },
+  { id:E.DINAMIT,ad:'Dinamit',renk:[185,35,25],     kategori:'katı' },
+  { id:E.TUZ,    ad:'Tuz',    renk:[212,218,228],   kategori:'toz'  },
 ];
 
 // ─────────────────────────────────────────────
@@ -404,7 +409,7 @@ function swapCells(x1, y1, x2, y2) {
 // ─────────────────────────────────────────────
 // SİMÜLASYON
 // ─────────────────────────────────────────────
-const YANABILIR = new Set([E.AHSAP, E.BITKI, E.KOMUR, E.TOZ]);
+const YANABILIR = new Set([E.AHSAP, E.BITKI, E.KOMUR, E.TOZ, E.BENZIN, E.GAZ]);
 let frameNum = 0;
 let dirToggle = 0;
 
@@ -438,8 +443,12 @@ function updateSim() {
         case E.ASIT:  updateAsit(x, y, i);  break;
         case E.KAR:   updateKar(x, y, i);   break;
         case E.KUL:   updateKul(x, y, i);   break;
-        case E.DUMAN: updateDuman(x, y, i); break;
-        case E.BUHAR: updateBuhar(x, y, i); break;
+        case E.DUMAN:   updateDuman(x, y, i);   break;
+        case E.BUHAR:   updateBuhar(x, y, i);   break;
+        case E.BENZIN:  updateBenzin(x, y, i);  break;
+        case E.GAZ:     updateGaz(x, y, i);     break;
+        case E.DINAMIT: updateDinamit(x, y, i); break;
+        case E.TUZ:     updateTuz(x, y, i);     break;
       }
     }
   }
@@ -449,24 +458,27 @@ function updateSim() {
 function updateKum(x, y, i) {
   const b = gType(x, y+1);
   if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
-  if (b === E.SU || b === E.ASIT) { swapCells(x, y, x, y+1); return; }
+  if (b === E.SU || b === E.ASIT || b === E.BENZIN) { swapCells(x, y, x, y+1); return; }
 
   const d = dirToggle ? 1 : -1;
   const bl = gType(x-d, y+1), br = gType(x+d, y+1);
   if (bl === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
-  if (bl === E.SU || bl === E.ASIT) { swapCells(x, y, x-d, y+1); return; }
+  if (bl === E.SU || bl === E.ASIT || bl === E.BENZIN) { swapCells(x, y, x-d, y+1); return; }
   if (br === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
-  if (br === E.SU || br === E.ASIT) { swapCells(x, y, x+d, y+1); return; }
+  if (br === E.SU || br === E.ASIT || br === E.BENZIN) { swapCells(x, y, x+d, y+1); return; }
 }
 
 // SU ──────────────────────────────────────────
 function updateSu(x, y, i) {
   const b = gType(x, y+1);
   if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+  if (b === E.BENZIN) { swapCells(x, y, x, y+1); return; } // su benzinin altına geçer
 
   const d = dirToggle ? 1 : -1;
   if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (gType(x-d, y+1) === E.BENZIN) { swapCells(x, y, x-d, y+1); return; }
   if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+  if (gType(x+d, y+1) === E.BENZIN) { swapCells(x, y, x+d, y+1); return; }
 
   // Yatay yayılma
   for (let s = 1; s <= 5; s++) {
@@ -493,7 +505,18 @@ function updateAtes(x, y, i) {
       if (t === E.BUZ && prob(0.2)) { setCell(nx, ny, E.SU); }
       if (prob(0.5)) { setCell(x, y, E.DUMAN, 70 + (Math.random()*50|0)); return; }
     }
-    if (YANABILIR.has(t) && prob(0.04)) {
+    if (t === E.BENZIN && prob(0.25)) {
+      // Benzin çok çabuk tutuşur ve zincirleme yapar
+      for (let ey = -3; ey <= 3; ey++) {
+        for (let ex = -3; ex <= 3; ex++) {
+          if (ex*ex+ey*ey <= 9 && inB(nx+ex, ny+ey) && prob(0.7)) {
+            if (gType(nx+ex, ny+ey) === E.BENZIN) setCell(nx+ex, ny+ey, E.ATES, 220);
+          }
+        }
+      }
+      setCell(nx, ny, E.ATES, 220); return;
+    }
+    if (YANABILIR.has(t) && t !== E.BENZIN && prob(0.04)) {
       setCell(nx, ny, E.ATES, 180 + (Math.random()*80|0));
     }
   }
@@ -712,6 +735,157 @@ function updateBuhar(x, y, i) {
     if (gType(x+dx, y-1) === E.BOSLUK) moveCell(x, y, x+dx, y-1);
     else if (gType(x, y-1) === E.BOSLUK) moveCell(x, y, x, y-1);
   }
+}
+
+// BENZİN ───────────────────────────────────────
+function updateBenzin(x, y, i) {
+  // Ateş/lav: zincirleme tutuşma
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t < 0) continue;
+    if (t === E.ATES || t === E.LAV) {
+      for (let ey = -4; ey <= 4; ey++) {
+        for (let ex = -4; ex <= 4; ex++) {
+          if (ex*ex+ey*ey <= 16 && inB(x+ex, y+ey) && prob(0.8)) {
+            const pt = gType(x+ex, y+ey);
+            if (pt === E.BENZIN || pt === E.BOSLUK)
+              setCell(x+ex, y+ey, E.ATES, 220 + (Math.random()*35|0));
+          }
+        }
+      }
+      setCell(x, y, E.ATES, 220); return;
+    }
+    if (t === E.SU && prob(0.1)) { swapCells(x, y, nx, ny); return; } // su benzini iter
+  }
+
+  // Hareket: aşağı düşer ama SU üzerinde yüzer
+  const b = gType(x, y+1);
+  if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+  // SU'ya batmaz
+
+  const d = dirToggle ? 1 : -1;
+  if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+
+  // Yatay yayılma (su gibi, 6'ya kadar)
+  for (let s = 1; s <= 6; s++) {
+    const lt = gType(x - s*d, y), rt = gType(x + s*d, y);
+    if (lt === E.BOSLUK) { moveCell(x, y, x - s*d, y); return; }
+    if (lt !== E.BENZIN && lt !== -1) break;
+    if (rt === E.BOSLUK) { moveCell(x, y, x + s*d, y); return; }
+    if (rt !== E.BENZIN && rt !== -1) break;
+  }
+
+  // Renk shimmer
+  const f = Math.random();
+  colorArr[i*3]   = 190 + (f*20|0);
+  colorArr[i*3+1] = 128 + (f*15|0);
+  colorArr[i*3+2] = 10  + (f*12|0);
+}
+
+// GAZ ──────────────────────────────────────────
+function updateGaz(x, y, i) {
+  // Ateş/lav: büyük patlama
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t === E.ATES || t === E.LAV) {
+      for (let ey = -8; ey <= 8; ey++) {
+        for (let ex = -8; ex <= 8; ex++) {
+          if (ex*ex+ey*ey <= 64 && inB(x+ex, y+ey) && prob(0.65)) {
+            const pt = gType(x+ex, y+ey);
+            if (pt !== E.TAS) setCell(x+ex, y+ey, E.ATES, 110 + (Math.random()*90|0));
+          }
+        }
+      }
+      setCell(x, y, E.BOSLUK); return;
+    }
+  }
+
+  // Yavaşça yüksel
+  if (prob(0.35)) {
+    const dx = ((Math.random()*3|0) - 1);
+    if (gType(x+dx, y-1) === E.BOSLUK) moveCell(x, y, x+dx, y-1);
+    else if (gType(x, y-1) === E.BOSLUK) moveCell(x, y, x, y-1);
+  }
+  // Yana yayılma (birikir)
+  if (prob(0.18)) {
+    const d = dirToggle ? 1 : -1;
+    if (gType(x + d, y) === E.BOSLUK) moveCell(x, y, x + d, y);
+    else if (gType(x - d, y) === E.BOSLUK) moveCell(x, y, x - d, y);
+  }
+
+  // Renk: hafif yeşilimsi tit
+  const f = Math.random() * 0.25;
+  colorArr[i*3]   = 85  + (f*18|0);
+  colorArr[i*3+1] = 150 + (f*22|0);
+  colorArr[i*3+2] = 75  + (f*15|0);
+}
+
+// DİNAMİT ──────────────────────────────────────
+function updateDinamit(x, y, i) {
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t === E.ATES || t === E.LAV) {
+      // Dev patlama — 11 hücre yarıçap
+      for (let ey = -11; ey <= 11; ey++) {
+        for (let ex = -11; ex <= 11; ex++) {
+          const dist = ex*ex + ey*ey;
+          if (dist <= 121 && inB(x+ex, y+ey)) {
+            const pt = gType(x+ex, y+ey);
+            const threshold = dist <= 36 ? 0.95 : 0.72;
+            if (prob(threshold)) {
+              if (pt === E.DINAMIT) {
+                // Zincirleme: bir frame gecikmeyle
+                setCell(x+ex, y+ey, E.ATES, 60);
+              } else if (pt !== E.TAS) {
+                setCell(x+ex, y+ey, prob(0.55) ? E.ATES : E.KUL,
+                        pt === E.BOSLUK ? 70 : 160);
+              }
+            }
+          }
+        }
+      }
+      setCell(x, y, E.BOSLUK); return;
+    }
+  }
+
+  // Dinamit rengi: yanıp sönen kırmızı
+  if (prob(0.05)) {
+    colorArr[i*3]   = 220 + (Math.random()*35|0);
+    colorArr[i*3+1] = 20;
+    colorArr[i*3+2] = 20;
+  }
+}
+
+// TUZ ──────────────────────────────────────────
+function updateTuz(x, y, i) {
+  // Su: yavaşça çözdürür (ikisi de yok olur)
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t === E.SU && prob(0.004)) {
+      setCell(nx, ny, E.BOSLUK);
+      setCell(x, y, E.BOSLUK); return;
+    }
+    if ((t === E.BUZ || t === E.KAR) && prob(0.035)) {
+      setCell(nx, ny, E.SU); // buzu/karı hızlıca eritir
+    }
+  }
+
+  // Kum gibi düşer
+  const b = gType(x, y+1);
+  if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+  if (b === E.SU || b === E.ASIT) { swapCells(x, y, x, y+1); return; }
+
+  const d = dirToggle ? 1 : -1;
+  const bl = gType(x-d, y+1), br = gType(x+d, y+1);
+  if (bl === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (bl === E.SU || bl === E.ASIT) { swapCells(x, y, x-d, y+1); return; }
+  if (br === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+  if (br === E.SU || br === E.ASIT) { swapCells(x, y, x+d, y+1); return; }
 }
 
 // ─────────────────────────────────────────────
