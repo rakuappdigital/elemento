@@ -175,10 +175,43 @@
       font-size: 9.5px;
       color: rgba(100,100,140,0.7);
       text-align: center;
-      margin-top: auto;
       padding-top: 8px;
       border-top: 1px solid #1a1a28;
       line-height: 1.6;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .raku-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding-top: 8px;
+      border-top: 1px solid #181828;
+    }
+    .raku-logo-img {
+      width: 96px;
+      height: auto;
+      display: block;
+      /* Beyaz arkaplanı kaldır: invert → siyaha çevir, hue-rotate teal'i korur,
+         screen blend-mode karanlık zeminde siyah pikselleri görünmez kılar */
+      filter: invert(1) hue-rotate(180deg);
+      mix-blend-mode: screen;
+      opacity: 0.82;
+      transition: opacity 0.2s;
+    }
+    .raku-logo-img:hover { opacity: 1; }
+    .copyright {
+      font-size: 8.5px;
+      color: rgba(80,80,115,0.55);
+      letter-spacing: 0.8px;
+      text-align: center;
     }
 
     .hint {
@@ -372,7 +405,13 @@
     </a>
   </div>
 
-  <div class="stats" id="stats">FPS: — | Parçacık: —</div>
+  <div class="sidebar-footer">
+    <div class="stats" id="stats">FPS: — | Parçacık: —</div>
+    <div class="raku-brand">
+      <img class="raku-logo-img" src="logo.png" alt="RAKU App">
+      <div class="copyright">© 2025 rakuapp</div>
+    </div>
+  </div>
 </div>
 
 <script>
