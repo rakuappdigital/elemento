@@ -242,6 +242,59 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
+
+    .upload-zone {
+      border: 1.5px dashed #2a2a42;
+      border-radius: 9px;
+      padding: 11px 8px 9px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      background: #0e0e1c;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #7c3aed;
+      background: #130d28;
+      box-shadow: 0 0 14px rgba(124,58,237,0.18);
+    }
+    .upload-icon { font-size: 20px; line-height: 1; margin-bottom: 4px; }
+    .upload-text { font-size: 10.5px; color: #9090c0; font-weight: 600; }
+    .upload-sub  { font-size: 9px; color: rgba(100,95,135,0.6); margin-top: 2px; }
+
+    .gorsel-opts {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 1px 2px;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      font-size: 10px;
+      color: #7878a8;
+      user-select: none;
+    }
+    .toggle-row:hover { color: #a0a0d0; }
+    .toggle-row input[type="checkbox"] {
+      accent-color: #7c3aed;
+      width: 12px; height: 12px;
+      cursor: pointer;
+    }
+    .toggle-row span { flex: 1; }
+
+    .load-info {
+      font-size: 9.5px;
+      color: #6060a0;
+      text-align: center;
+      padding: 4px 6px;
+      background: #0c0c1a;
+      border-radius: 6px;
+      border: 1px solid #1e1e30;
+      line-height: 1.5;
+    }
+    .load-info.ok { color: #60c080; border-color: #1a3020; }
   </style>
 </head>
 <body>
@@ -274,6 +327,25 @@
   </div>
 
   <div class="hint">1–9 tuşları element seçer</div>
+
+  <div class="section-label">Görsel → Element</div>
+  <div class="upload-zone" id="upload-zone">
+    <div class="upload-icon">🖼️</div>
+    <div class="upload-text">Görsel seç veya bırak</div>
+    <div class="upload-sub">PNG · JPG — piksel art'a dönüştürür</div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+  <div class="gorsel-opts">
+    <label class="toggle-row" title="Aktifken TAS/AHSAP gibi hareketsiz elementler kullanılır; görsel bozunmaz">
+      <input type="checkbox" id="toggle-static">
+      <span>Sabit elementler</span>
+    </label>
+    <label class="toggle-row" title="Görsel yüklenince simülasyon dondurulur; izledikten sonra Devam'a bas">
+      <input type="checkbox" id="toggle-freeze" checked>
+      <span>Yüklenince dondur</span>
+    </label>
+  </div>
+  <div class="load-info" id="load-info" style="display:none">—</div>
 
   <div class="section-label">Diğer Uygulamalar</div>
   <div class="diger-uygulamalar">
@@ -1030,6 +1102,146 @@ document.addEventListener('keydown', e => {
   if (e.key === 'c' || e.key === 'C') {
     typeArr.fill(0); colorArr.fill(0); extraArr.fill(0);
   }
+});
+
+// ─────────────────────────────────────────────
+// GÖRSEL YÜKLEME
+// ─────────────────────────────────────────────
+
+// Renk paleti — "tam" modu: her element, görsel yavaşça bozunur
+// "sabit" modu: sadece hareketsiz elementler, piksel art kalıcı kalır
+const GORSEL_PALETI = {
+  tam: [
+    { id:E.BOSLUK,  r:7,   g:7,   b:14  }, // çok koyu arka plan → boşluk
+    { id:E.KOMUR,   r:32,  g:30,  b:36  },
+    { id:E.KUL,     r:75,  g:70,  b:80  },
+    { id:E.TAS,     r:115, g:115, b:125 },
+    { id:E.KUM,     r:194, g:169, b:109 },
+    { id:E.BENZIN,  r:200, g:135, b:15  },
+    { id:E.TOZ,     r:85,  g:65,  b:55  },
+    { id:E.AHSAP,   r:140, g:90,  b:45  },
+    { id:E.LAV,     r:230, g:60,  b:0   },
+    { id:E.DINAMIT, r:185, g:35,  b:25  },
+    { id:E.SU,      r:60,  g:140, b:220 },
+    { id:E.BUZ,     r:170, g:220, b:255 },
+    { id:E.TUZ,     r:212, g:218, b:228 },
+    { id:E.KAR,     r:220, g:232, b:245 },
+    { id:E.BITKI,   r:40,  g:150, b:50  },
+    { id:E.ASIT,    r:100, g:220, b:60  },
+  ],
+  sabit: [
+    { id:E.BOSLUK,  r:7,   g:7,   b:14  },
+    { id:E.KOMUR,   r:32,  g:30,  b:36  },
+    { id:E.TAS,     r:68,  g:65,  b:74  }, // çok koyu gri
+    { id:E.TAS,     r:115, g:115, b:125 },
+    { id:E.TAS,     r:160, g:158, b:165 }, // açık gri
+    { id:E.AHSAP,   r:140, g:90,  b:45  },
+    { id:E.AHSAP,   r:170, g:120, b:70  }, // açık tahta
+    { id:E.KOMUR,   r:60,  g:45,  b:30  }, // koyu kahve
+    { id:E.BUZ,     r:170, g:220, b:255 },
+    { id:E.BUZ,     r:210, g:230, b:248 }, // neredeyse beyaz
+    { id:E.TAS,     r:212, g:218, b:228 }, // açık kaya
+    { id:E.BITKI,   r:40,  g:150, b:50  },
+    { id:E.BITKI,   r:30,  g:110, b:40  }, // koyu yeşil
+    { id:E.TAS,     r:155, g:110, b:80  }, // kırmızımsı kaya
+    { id:E.TAS,     r:200, g:155, b:110 }, // toprak rengi kaya
+  ],
+};
+
+// Euclidean RGB mesafesi ile en yakın elementi bul
+function pixelToElement(pr, pg, pb, palette) {
+  let bestId = E.BOSLUK, bestDist = Infinity;
+  for (const p of palette) {
+    const dr = pr - p.r, dg = pg - p.g, db = pb - p.b;
+    // Hafif renk ağırlığı: chroma'ya biraz daha önem ver
+    const dist = dr*dr*1.2 + dg*dg*1.1 + db*db;
+    if (dist < bestDist) { bestDist = dist; bestId = p.id; }
+  }
+  return bestId;
+}
+
+function loadImageToGrid(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      // Görsel W×H grid çözünürlüğüne ölçekle (en-boy oranı korunur)
+      const tmpC = document.createElement('canvas');
+      tmpC.width = W; tmpC.height = H;
+      const tc = tmpC.getContext('2d');
+      tc.fillStyle = '#07070e';
+      tc.fillRect(0, 0, W, H);
+
+      const imgAR  = img.width / img.height;
+      const gridAR = W / H;
+      let dw, dh, dx, dy;
+      if (imgAR > gridAR) {
+        dw = W;       dh = W / imgAR;
+        dx = 0;       dy = (H - dh) / 2;
+      } else {
+        dh = H;       dw = H * imgAR;
+        dx = (W - dw) / 2; dy = 0;
+      }
+      tc.drawImage(img, dx, dy, dw, dh);
+
+      const pixels = tc.getImageData(0, 0, W, H).data;
+      const isStatik = document.getElementById('toggle-static').checked;
+      const palette  = isStatik ? GORSEL_PALETI.sabit : GORSEL_PALETI.tam;
+
+      // Grid'i temizle ve doldur
+      typeArr.fill(0); colorArr.fill(0); extraArr.fill(0);
+
+      let count = 0;
+      for (let py = 0; py < H; py++) {
+        for (let px = 0; px < W; px++) {
+          const pi = (py * W + px) * 4;
+          const r  = pixels[pi], g = pixels[pi+1], b = pixels[pi+2], a = pixels[pi+3];
+          if (a < 60) continue; // şeffaf piksel → boşluk
+          const el = pixelToElement(r, g, b, palette);
+          if (el !== E.BOSLUK) { setCell(px, py, el); count++; }
+        }
+      }
+
+      // Dondur seçeneği
+      const freeze = document.getElementById('toggle-freeze').checked;
+      if (freeze) {
+        paused = true;
+        document.getElementById('btn-pause').textContent = '▶ Devam';
+      }
+
+      // Bilgi mesajı
+      const info = document.getElementById('load-info');
+      info.style.display = 'block';
+      info.className = 'load-info ok';
+      info.textContent = `✓ ${count.toLocaleString('tr')} parçacık · ${isStatik ? 'sabit' : 'dinamik'} mod${freeze ? ' · donduruldu' : ''}`;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Upload zone event'leri
+document.getElementById('upload-zone').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) loadImageToGrid(e.target.files[0]);
+  e.target.value = ''; // aynı dosyayı tekrar yükleyebilmek için sıfırla
+});
+
+// Drag & drop
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImageToGrid(file);
 });
 
 // ─────────────────────────────────────────────
