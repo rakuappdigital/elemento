@@ -187,6 +187,61 @@
       text-align: center;
       line-height: 1.5;
     }
+
+    .diger-uygulamalar {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-top: 2px;
+    }
+
+    .app-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #12121e;
+      border: 1.5px solid #1e1e30;
+      border-radius: 8px;
+      padding: 7px 9px;
+      text-decoration: none;
+      transition: background 0.12s, border-color 0.12s, transform 0.12s;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .app-link:hover {
+      background: #1a1a2e;
+      border-color: #4a3a6a;
+      transform: translateX(2px);
+    }
+    .app-link-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .app-link-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .app-link-name {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #b0a0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .app-link-desc {
+      font-size: 9px;
+      color: rgba(120,110,160,0.65);
+      line-height: 1.3;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
   </style>
 </head>
 <body>
@@ -219,6 +274,31 @@
   </div>
 
   <div class="hint">1–9 tuşları element seçer</div>
+
+  <div class="section-label">Diğer Uygulamalar</div>
+  <div class="diger-uygulamalar">
+    <a class="app-link" href="https://dk26simule.vercel.app" target="_blank" rel="noopener">
+      <span class="app-link-icon">⚽</span>
+      <div class="app-link-text">
+        <span class="app-link-name">DK26 Simülatör</span>
+        <span class="app-link-desc">Dünya Kupası simülatörü</span>
+      </div>
+    </a>
+    <a class="app-link" href="https://paginapasaj.vercel.app" target="_blank" rel="noopener">
+      <span class="app-link-icon">📖</span>
+      <div class="app-link-text">
+        <span class="app-link-name">Pagina Pasaj</span>
+        <span class="app-link-desc">Günlük kitap pasajı aparatınız</span>
+      </div>
+    </a>
+    <a class="app-link" href="https://biroluruz.vercel.app" target="_blank" rel="noopener">
+      <span class="app-link-icon">🏆</span>
+      <div class="app-link-text">
+        <span class="app-link-name">#biroluruz</span>
+        <span class="app-link-desc">Gerçek zamanlı DK tahmin oyunu</span>
+      </div>
+    </a>
+  </div>
 
   <div class="stats" id="stats">FPS: — | Parçacık: —</div>
 </div>
