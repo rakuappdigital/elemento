@@ -422,7 +422,7 @@ const E = {
   BOSLUK:0, KUM:1, SU:2, ATES:3, AHSAP:4, TAS:5,
   LAV:6, BUZ:7, BITKI:8, KOMUR:9, TOZ:10, ASIT:11,
   KAR:12, KUL:13, DUMAN:14, BUHAR:15,
-  BENZIN:16, GAZ:17, DINAMIT:18, TUZ:19
+  BENZIN:16, GAZ:17, DINAMIT:18, TUZ:19, KAGIT:20
 };
 
 // Kullanıcıya gösterilen elementler (sıralı)
@@ -445,6 +445,7 @@ const EL_DEFS = [
   { id:E.GAZ,    ad:'Gaz',    renk:[115,195,95],    kategori:'gaz'  },
   { id:E.DINAMIT,ad:'Dinamit',renk:[185,35,25],     kategori:'katı' },
   { id:E.TUZ,    ad:'Tuz',    renk:[212,218,228],   kategori:'toz'  },
+  { id:E.KAGIT,  ad:'Kağıt',  renk:[235,228,210],   kategori:'katı' },
 ];
 
 // ─────────────────────────────────────────────
@@ -520,7 +521,7 @@ function swapCells(x1, y1, x2, y2) {
 // ─────────────────────────────────────────────
 // SİMÜLASYON
 // ─────────────────────────────────────────────
-const YANABILIR = new Set([E.AHSAP, E.BITKI, E.KOMUR, E.TOZ, E.BENZIN, E.GAZ]);
+const YANABILIR = new Set([E.AHSAP, E.BITKI, E.KOMUR, E.TOZ, E.BENZIN, E.GAZ, E.KAGIT]);
 let frameNum = 0;
 let dirToggle = 0;
 
@@ -560,6 +561,7 @@ function updateSim() {
         case E.GAZ:     updateGaz(x, y, i);     break;
         case E.DINAMIT: updateDinamit(x, y, i); break;
         case E.TUZ:     updateTuz(x, y, i);     break;
+        case E.KAGIT:   updateKagit(x, y, i);  break;
       }
     }
   }
@@ -627,7 +629,10 @@ function updateAtes(x, y, i) {
       }
       setCell(nx, ny, E.ATES, 220); return;
     }
-    if (YANABILIR.has(t) && t !== E.BENZIN && prob(0.04)) {
+    if (t === E.KAGIT && prob(0.18)) {
+      // Kağıt çok çabuk yanar — 8 komşuya da yayılır
+      setCell(nx, ny, E.ATES, 95 + (Math.random()*65|0));
+    } else if (YANABILIR.has(t) && t !== E.BENZIN && t !== E.KAGIT && prob(0.04)) {
       setCell(nx, ny, E.ATES, 180 + (Math.random()*80|0));
     }
   }
@@ -999,6 +1004,18 @@ function updateTuz(x, y, i) {
   if (br === E.SU || br === E.ASIT) { swapCells(x, y, x+d, y+1); return; }
 }
 
+// KAĞIT ────────────────────────────────────────
+function updateKagit(x, y, i) {
+  // 8 yönlü komşu tarar — ateş/lav'a çok hassas
+  const nb8 = [[x,y-1],[x,y+1],[x-1,y],[x+1,y],[x-1,y-1],[x+1,y-1],[x-1,y+1],[x+1,y+1]];
+  for (const [nx, ny] of nb8) {
+    const t = gType(nx, ny);
+    if ((t === E.ATES || t === E.LAV) && prob(0.14)) {
+      setCell(x, y, E.ATES, 90 + (Math.random()*65|0)); return;
+    }
+  }
+}
+
 // ─────────────────────────────────────────────
 // RENDER
 // ─────────────────────────────────────────────
@@ -1150,23 +1167,29 @@ document.addEventListener('keydown', e => {
 // Renk paleti — "tam" modu: her element, görsel yavaşça bozunur
 // "sabit" modu: sadece hareketsiz elementler, piksel art kalıcı kalır
 const GORSEL_PALETI = {
+  // "tam" paleti: nötr/açık/gri alanlar → KAGIT (yanar!)
+  // Görsel rengi setCell'in üzerine yazılır → foto mükemmel görünür
   tam: [
-    { id:E.BOSLUK,  r:7,   g:7,   b:14  }, // çok koyu arka plan → boşluk
-    { id:E.KOMUR,   r:32,  g:30,  b:36  },
-    { id:E.KUL,     r:75,  g:70,  b:80  },
-    { id:E.TAS,     r:115, g:115, b:125 },
-    { id:E.KUM,     r:194, g:169, b:109 },
-    { id:E.BENZIN,  r:200, g:135, b:15  },
-    { id:E.TOZ,     r:85,  g:65,  b:55  },
-    { id:E.AHSAP,   r:140, g:90,  b:45  },
-    { id:E.LAV,     r:230, g:60,  b:0   },
-    { id:E.DINAMIT, r:185, g:35,  b:25  },
-    { id:E.SU,      r:60,  g:140, b:220 },
-    { id:E.BUZ,     r:170, g:220, b:255 },
-    { id:E.TUZ,     r:212, g:218, b:228 },
-    { id:E.KAR,     r:220, g:232, b:245 },
-    { id:E.BITKI,   r:40,  g:150, b:50  },
-    { id:E.ASIT,    r:100, g:220, b:60  },
+    { id:E.BOSLUK,  r:7,   g:7,   b:14  }, // arkaplan karanlığı → boşluk
+    { id:E.KOMUR,   r:32,  g:30,  b:36  }, // siyah → kömür (yanar)
+    { id:E.KOMUR,   r:55,  g:50,  b:58  }, // koyu gri → kömür
+    { id:E.KAGIT,   r:100, g:98,  b:103 }, // orta gri → kağıt (yanar!)
+    { id:E.KAGIT,   r:155, g:152, b:155 }, // açık gri → kağıt (yanar!)
+    { id:E.KAGIT,   r:200, g:195, b:188 }, // nötr açık → kağıt (yanar!)
+    { id:E.KAGIT,   r:225, g:220, b:212 }, // krem → kağıt (yanar!)
+    { id:E.KAGIT,   r:240, g:235, b:228 }, // neredeyse beyaz → kağıt (yanar!)
+    { id:E.AHSAP,   r:140, g:90,  b:45  }, // kahve → ahşap (yanar)
+    { id:E.AHSAP,   r:175, g:130, b:80  }, // açık kahve → ahşap (yanar)
+    { id:E.KUM,     r:194, g:169, b:109 }, // kum sarısı → kum
+    { id:E.BENZIN,  r:200, g:135, b:15  }, // kehribar → benzin (yanar!)
+    { id:E.TOZ,     r:85,  g:65,  b:55  }, // koyu kahve → barut (patlar!)
+    { id:E.LAV,     r:230, g:60,  b:0   }, // turuncu-kırmızı → lav
+    { id:E.DINAMIT, r:185, g:35,  b:25  }, // kırmızı → dinamit
+    { id:E.SU,      r:60,  g:140, b:220 }, // mavi → su
+    { id:E.BUZ,     r:170, g:220, b:255 }, // açık mavi → buz
+    { id:E.BITKI,   r:40,  g:150, b:50  }, // yeşil → bitki (yanar)
+    { id:E.BITKI,   r:75,  g:125, b:50  }, // koyu yeşil → bitki
+    { id:E.ASIT,    r:100, g:220, b:60  }, // neon yeşil → asit
   ],
   sabit: [
     { id:E.BOSLUK,  r:7,   g:7,   b:14  },
@@ -1237,7 +1260,16 @@ function loadImageToGrid(file) {
           const r  = pixels[pi], g = pixels[pi+1], b = pixels[pi+2], a = pixels[pi+3];
           if (a < 60) continue; // şeffaf piksel → boşluk
           const el = pixelToElement(r, g, b, palette);
-          if (el !== E.BOSLUK) { setCell(px, py, el); count++; }
+          if (el !== E.BOSLUK) {
+            setCell(px, py, el);
+            // Elementin base rengini değil, pikselin GERÇEK rengini kullan
+            // → görsel birebir fotograf gibi görünür, fizik davranışı element tipinden gelir
+            const ci = idx(px, py);
+            colorArr[ci*3]   = r;
+            colorArr[ci*3+1] = g;
+            colorArr[ci*3+2] = b;
+            count++;
+          }
         }
       }
 
