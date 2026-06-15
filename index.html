@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elemento — Parçacık Simülasyonu</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #07070f;
+      color: #d0d0f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      display: flex;
+      height: 100dvh;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #05050c;
+      overflow: hidden;
+    }
+
+    #canvas {
+      cursor: crosshair;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    #sidebar {
+      width: 190px;
+      min-width: 190px;
+      background: #0e0e1a;
+      border-left: 1px solid #1e1e30;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 10px;
+      gap: 8px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 2px; }
+
+    .logo {
+      text-align: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #1e1e30;
+    }
+    .logo-text {
+      font-size: 18px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .logo-sub {
+      font-size: 9px;
+      color: #4040608;
+      color: rgba(150,150,200,0.5);
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    .section-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #40406080;
+      color: rgba(120,120,160,0.6);
+      padding-top: 2px;
+    }
+
+    .element-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .el-btn {
+      background: #12121e;
+      border: 1.5px solid #1e1e30;
+      border-radius: 8px;
+      padding: 7px 4px 5px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      position: relative;
+    }
+    .el-btn:hover { background: #1a1a2e; border-color: #3a3a56; }
+    .el-btn.active {
+      border-color: #7c3aed;
+      background: #180d38;
+      box-shadow: 0 0 10px rgba(124,58,237,0.25), inset 0 0 8px rgba(124,58,237,0.08);
+    }
+    .el-swatch {
+      width: 30px;
+      height: 22px;
+      border-radius: 5px;
+    }
+    .el-name {
+      font-size: 9.5px;
+      color: #8888b0;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .el-btn.active .el-name { color: #c0a0ff; }
+
+    .hotkey {
+      position: absolute;
+      top: 3px;
+      right: 4px;
+      font-size: 8px;
+      color: rgba(120,120,160,0.45);
+      font-weight: 600;
+    }
+
+    .brush-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .brush-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #6060a0;
+    }
+    #brush-val { color: #a090e0; font-weight: 600; }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      accent-color: #7c3aed;
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 4px;
+    }
+    .act-btn {
+      flex: 1;
+      background: #12121e;
+      border: 1.5px solid #1e1e30;
+      border-radius: 7px;
+      color: #8888b0;
+      padding: 6px 2px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+    .act-btn:hover { background: #1a1a2e; border-color: #3a3a56; color: #c0c0e0; }
+    .act-btn.danger:hover { border-color: #7c3aed; color: #c084fc; }
+
+    .stats {
+      font-size: 9.5px;
+      color: rgba(100,100,140,0.7);
+      text-align: center;
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid #1a1a28;
+      line-height: 1.6;
+    }
+
+    .hint {
+      font-size: 9px;
+      color: rgba(80,80,120,0.5);
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="sidebar">
+  <div class="logo">
+    <div class="logo-text">Elemento</div>
+    <div class="logo-sub">Parçacık Simülasyonu</div>
+  </div>
+
+  <div class="section-label">Elementler</div>
+  <div class="element-grid" id="el-grid"></div>
+
+  <div class="section-label">Fırça Boyutu</div>
+  <div class="brush-row">
+    <div class="brush-info">
+      <span>Boyut</span>
+      <span id="brush-val">4</span>
+    </div>
+    <input type="range" id="brush-range" min="1" max="25" value="4">
+  </div>
+
+  <div class="section-label">Kontroller</div>
+  <div class="btn-row">
+    <button class="act-btn danger" id="btn-clear">🗑 Temizle</button>
+    <button class="act-btn" id="btn-pause">⏸ Durdur</button>
+  </div>
+
+  <div class="hint">1–9 tuşları element seçer</div>
+
+  <div class="stats" id="stats">FPS: — | Parçacık: —</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// ELEMENT KİMLİKLERİ
+// ─────────────────────────────────────────────
+const E = {
+  BOSLUK:0, KUM:1, SU:2, ATES:3, AHSAP:4, TAS:5,
+  LAV:6, BUZ:7, BITKI:8, KOMUR:9, TOZ:10, ASIT:11,
+  KAR:12, KUL:13, DUMAN:14, BUHAR:15
+};
+
+// Kullanıcıya gösterilen elementler (sıralı)
+const EL_DEFS = [
+  { id:E.BOSLUK, ad:'Silgi',  renk:[20,20,35],      kategori:'araç' },
+  { id:E.KUM,    ad:'Kum',    renk:[194,169,109],   kategori:'toz'  },
+  { id:E.SU,     ad:'Su',     renk:[60,140,220],    kategori:'sıvı' },
+  { id:E.ATES,   ad:'Ateş',   renk:[255,90,10],     kategori:'gaz'  },
+  { id:E.AHSAP,  ad:'Ahşap',  renk:[140,90,45],     kategori:'katı' },
+  { id:E.TAS,    ad:'Taş',    renk:[115,115,125],   kategori:'katı' },
+  { id:E.LAV,    ad:'Lav',    renk:[230,60,0],      kategori:'sıvı' },
+  { id:E.BUZ,    ad:'Buz',    renk:[170,220,255],   kategori:'katı' },
+  { id:E.BITKI,  ad:'Bitki',  renk:[40,150,50],     kategori:'katı' },
+  { id:E.KOMUR,  ad:'Kömür',  renk:[38,36,42],      kategori:'katı' },
+  { id:E.TOZ,    ad:'Barut',  renk:[85,65,55],      kategori:'toz'  },
+  { id:E.ASIT,   ad:'Asit',   renk:[100,220,60],    kategori:'sıvı' },
+  { id:E.KAR,    ad:'Kar',    renk:[220,232,245],   kategori:'toz'  },
+  { id:E.KUL,    ad:'Kül',    renk:[75,70,80],      kategori:'toz'  },
+];
+
+// ─────────────────────────────────────────────
+// CANVAS & GRİD
+// ─────────────────────────────────────────────
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d', { alpha: false });
+const CELL    = 3; // piksel/hücre
+
+let W = 0, H = 0;
+let typeArr, colorArr, extraArr, updArr;
+
+function setupGrid() {
+  const wrap = document.getElementById('canvas-wrap');
+  W = Math.floor(wrap.clientWidth  / CELL);
+  H = Math.floor(wrap.clientHeight / CELL);
+  canvas.width  = W * CELL;
+  canvas.height = H * CELL;
+
+  const sz = W * H;
+  typeArr  = new Uint8Array(sz);
+  colorArr = new Uint8ClampedArray(sz * 3);
+  extraArr = new Uint8Array(sz);
+  updArr   = new Uint8Array(sz);
+  imgData  = ctx.createImageData(canvas.width, canvas.height);
+  imgPx    = imgData.data;
+  imgPx.fill(255); // alpha = 255 başlangıçta
+}
+
+const idx = (x, y) => y * W + x;
+const inB = (x, y) => x >= 0 && x < W && y >= 0 && y < H;
+const gType = (x, y) => inB(x, y) ? typeArr[idx(x, y)] : -1;
+
+function setCell(x, y, t, ex = 0) {
+  if (!inB(x, y)) return;
+  const i = idx(x, y);
+  typeArr[i] = t;
+  extraArr[i] = ex;
+
+  if (t === E.BOSLUK) {
+    colorArr[i*3] = colorArr[i*3+1] = colorArr[i*3+2] = 0;
+    return;
+  }
+  const def = EL_DEFS.find(d => d.id === t);
+  if (!def) return;
+  const v = (Math.random() * 22 - 11) | 0;
+  colorArr[i*3]   = Math.max(0, Math.min(255, def.renk[0] + v));
+  colorArr[i*3+1] = Math.max(0, Math.min(255, def.renk[1] + v));
+  colorArr[i*3+2] = Math.max(0, Math.min(255, def.renk[2] + v));
+}
+
+function moveCell(x1, y1, x2, y2) {
+  const i1 = idx(x1,y1), i2 = idx(x2,y2);
+  typeArr[i2]  = typeArr[i1];  typeArr[i1]  = E.BOSLUK;
+  extraArr[i2] = extraArr[i1]; extraArr[i1] = 0;
+  colorArr[i2*3]   = colorArr[i1*3];   colorArr[i1*3]   = 0;
+  colorArr[i2*3+1] = colorArr[i1*3+1]; colorArr[i1*3+1] = 0;
+  colorArr[i2*3+2] = colorArr[i1*3+2]; colorArr[i1*3+2] = 0;
+  updArr[i2] = 1;
+}
+
+function swapCells(x1, y1, x2, y2) {
+  const i1 = idx(x1,y1), i2 = idx(x2,y2);
+  let tmp;
+  tmp = typeArr[i1];  typeArr[i1]  = typeArr[i2];  typeArr[i2]  = tmp;
+  tmp = extraArr[i1]; extraArr[i1] = extraArr[i2]; extraArr[i2] = tmp;
+  for (let c = 0; c < 3; c++) {
+    tmp = colorArr[i1*3+c]; colorArr[i1*3+c] = colorArr[i2*3+c]; colorArr[i2*3+c] = tmp;
+  }
+  updArr[i1] = updArr[i2] = 1;
+}
+
+// ─────────────────────────────────────────────
+// SİMÜLASYON
+// ─────────────────────────────────────────────
+const YANABILIR = new Set([E.AHSAP, E.BITKI, E.KOMUR, E.TOZ]);
+let frameNum = 0;
+let dirToggle = 0;
+
+function prob(p) { return Math.random() < p; }
+
+function updateSim() {
+  updArr.fill(0);
+  dirToggle ^= 1;
+  frameNum++;
+
+  for (let y = H - 1; y >= 0; y--) {
+    // Her satırda yön değiştir
+    const ltr = ((y + dirToggle) & 1) === 0;
+    const x0 = ltr ? 0 : W - 1;
+    const x1 = ltr ? W : -1;
+    const xs = ltr ? 1 : -1;
+
+    for (let x = x0; x !== x1; x += xs) {
+      const i = idx(x, y);
+      if (updArr[i]) continue;
+
+      switch (typeArr[i]) {
+        case E.KUM:   updateKum(x, y, i);   break;
+        case E.SU:    updateSu(x, y, i);    break;
+        case E.ATES:  updateAtes(x, y, i);  break;
+        case E.LAV:   updateLav(x, y, i);   break;
+        case E.BUZ:   updateBuz(x, y, i);   break;
+        case E.BITKI: updateBitki(x, y, i); break;
+        case E.KOMUR: updateKomur(x, y, i); break;
+        case E.TOZ:   updateToz(x, y, i);   break;
+        case E.ASIT:  updateAsit(x, y, i);  break;
+        case E.KAR:   updateKar(x, y, i);   break;
+        case E.KUL:   updateKul(x, y, i);   break;
+        case E.DUMAN: updateDuman(x, y, i); break;
+        case E.BUHAR: updateBuhar(x, y, i); break;
+      }
+    }
+  }
+}
+
+// KUM ──────────────────────────────────────────
+function updateKum(x, y, i) {
+  const b = gType(x, y+1);
+  if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+  if (b === E.SU || b === E.ASIT) { swapCells(x, y, x, y+1); return; }
+
+  const d = dirToggle ? 1 : -1;
+  const bl = gType(x-d, y+1), br = gType(x+d, y+1);
+  if (bl === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (bl === E.SU || bl === E.ASIT) { swapCells(x, y, x-d, y+1); return; }
+  if (br === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+  if (br === E.SU || br === E.ASIT) { swapCells(x, y, x+d, y+1); return; }
+}
+
+// SU ──────────────────────────────────────────
+function updateSu(x, y, i) {
+  const b = gType(x, y+1);
+  if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+
+  const d = dirToggle ? 1 : -1;
+  if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+
+  // Yatay yayılma
+  for (let s = 1; s <= 5; s++) {
+    const lt = gType(x - s*d, y), rt = gType(x + s*d, y);
+    if (lt === E.BOSLUK) { moveCell(x, y, x - s*d, y); return; }
+    if (lt !== E.SU && lt !== -1 && lt !== E.ASIT) break;
+    if (rt === E.BOSLUK) { moveCell(x, y, x + s*d, y); return; }
+    if (rt !== E.SU && rt !== -1 && rt !== E.ASIT) break;
+  }
+}
+
+// ATEŞ ─────────────────────────────────────────
+function updateAtes(x, y, i) {
+  const life = extraArr[i];
+
+  // Bitişik hücreleri kontrol et
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t < 0) continue;
+    if (t === E.SU || t === E.BUZ) {
+      // Su söndürür
+      if (t === E.SU && prob(0.3)) { setCell(nx, ny, E.BUHAR, 90); }
+      if (t === E.BUZ && prob(0.2)) { setCell(nx, ny, E.SU); }
+      if (prob(0.5)) { setCell(x, y, E.DUMAN, 70 + (Math.random()*50|0)); return; }
+    }
+    if (YANABILIR.has(t) && prob(0.04)) {
+      setCell(nx, ny, E.ATES, 180 + (Math.random()*80|0));
+    }
+  }
+
+  // Yüksel
+  if (prob(0.5)) {
+    const ax = x + ((Math.random()*3|0) - 1);
+    if (gType(ax, y-1) === E.BOSLUK) moveCell(x, y, ax, y-1);
+    else if (gType(x, y-1) === E.BOSLUK) moveCell(x, y, x, y-1);
+  }
+
+  // Duman çıkar
+  if (prob(0.06)) {
+    const sx = x + ((Math.random()*3|0) - 1);
+    if (gType(sx, y-1) === E.BOSLUK) setCell(sx, y-1, E.DUMAN, 60 + (Math.random()*60|0));
+  }
+
+  // Yaşam süresi
+  if (life > 0) {
+    extraArr[i] = life - 1;
+  } else {
+    if (prob(0.025)) setCell(x, y, prob(0.4) ? E.KUL : E.BOSLUK);
+  }
+
+  // Alev titremesi için renk animasyonu
+  const f = Math.random();
+  if (f < 0.25)      { colorArr[i*3]=255; colorArr[i*3+1]=230; colorArr[i*3+2]=20;  }
+  else if (f < 0.55) { colorArr[i*3]=255; colorArr[i*3+1]=120; colorArr[i*3+2]=0;   }
+  else if (f < 0.80) { colorArr[i*3]=240; colorArr[i*3+1]=50;  colorArr[i*3+2]=0;   }
+  else               { colorArr[i*3]=180; colorArr[i*3+1]=20;  colorArr[i*3+2]=0;   }
+}
+
+// LAV ──────────────────────────────────────────
+function updateLav(x, y, i) {
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t < 0) continue;
+    if ((t === E.SU || t === E.BUZ) && prob(0.08)) {
+      setCell(x, y, E.TAS); setCell(nx, ny, t === E.SU ? E.BUHAR : E.SU, 90);
+      return;
+    }
+    if (YANABILIR.has(t) && prob(0.06)) setCell(nx, ny, E.ATES, 200);
+  }
+
+  // Yavaş akış
+  if (prob(0.35)) {
+    const b = gType(x, y+1);
+    if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+    const d = dirToggle ? 1 : -1;
+    if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+    if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+    if (prob(0.25)) {
+      if (gType(x-d, y) === E.BOSLUK) { moveCell(x, y, x-d, y); return; }
+      if (gType(x+d, y) === E.BOSLUK) { moveCell(x, y, x+d, y); return; }
+    }
+  }
+
+  // Küçük ateş çıkarır
+  if (prob(0.015) && gType(x, y-1) === E.BOSLUK) setCell(x, y-1, E.ATES, 40);
+
+  // Renk titremesi
+  const f = Math.random();
+  if (f < 0.5) { colorArr[i*3]=220+((f*60)|0); colorArr[i*3+1]=55+((f*30)|0); colorArr[i*3+2]=0; }
+  else         { colorArr[i*3]=255; colorArr[i*3+1]=40+((f*40)|0); colorArr[i*3+2]=5; }
+}
+
+// BUZ ──────────────────────────────────────────
+function updateBuz(x, y, i) {
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if ((t === E.ATES || t === E.LAV) && prob(0.08)) { setCell(x, y, E.SU); return; }
+    // Suyu dondurmaz (çok OP), sadece buz kendisi erir
+  }
+}
+
+// BİTKİ ────────────────────────────────────────
+function updateBitki(x, y, i) {
+  if (prob(0.0015)) {
+    const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    const [dx, dy] = dirs[Math.random()*4|0];
+    const t = gType(x+dx, y+dy);
+    if (t === E.BOSLUK || t === E.SU) setCell(x+dx, y+dy, E.BITKI);
+  }
+}
+
+// KÖMÜR ────────────────────────────────────────
+function updateKomur(x, y, i) {
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if ((t === E.ATES || t === E.LAV) && prob(0.015)) {
+      setCell(x, y, E.ATES, 250); // uzun ömürlü ateş
+    }
+  }
+}
+
+// BARUT ────────────────────────────────────────
+function updateToz(x, y, i) {
+  // Kum gibi düşer
+  const b = gType(x, y+1);
+  if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+  const d = dirToggle ? 1 : -1;
+  if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+
+  // Ateş/lav'a değerse patlama
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t === E.ATES || t === E.LAV) {
+      for (let ey = -4; ey <= 4; ey++) {
+        for (let ex = -4; ex <= 4; ex++) {
+          if (ex*ex + ey*ey <= 16 && inB(x+ex, y+ey) && prob(0.75)) {
+            const pt = gType(x+ex, y+ey);
+            if (pt !== E.TAS && pt !== E.BUZ) setCell(x+ex, y+ey, E.ATES, 100);
+          }
+        }
+      }
+      setCell(x, y, E.BOSLUK);
+      return;
+    }
+  }
+}
+
+// ASİT ─────────────────────────────────────────
+function updateAsit(x, y, i) {
+  // Su gibi akar
+  const b = gType(x, y+1);
+  if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+  if (b !== E.TAS && b !== E.ASIT && b !== -1 && prob(0.15)) {
+    setCell(x, y+1, E.BOSLUK);
+    if (prob(0.3)) setCell(x, y, E.BOSLUK); // asit de azalır
+    return;
+  }
+
+  const d = dirToggle ? 1 : -1;
+  if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+  if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+
+  for (let s = 1; s <= 4; s++) {
+    const lt = gType(x - s*d, y), rt = gType(x + s*d, y);
+    if (lt === E.BOSLUK) { moveCell(x, y, x - s*d, y); return; }
+    if (lt !== E.ASIT && lt !== -1) break;
+    if (rt === E.BOSLUK) { moveCell(x, y, x + s*d, y); return; }
+    if (rt !== E.ASIT && rt !== -1) break;
+  }
+
+  // Yan hücreleri eritir
+  const nb = [[x-1,y],[x+1,y],[x,y-1]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if (t !== -1 && t !== E.BOSLUK && t !== E.TAS && t !== E.ASIT && prob(0.01)) {
+      setCell(nx, ny, E.BOSLUK);
+      if (prob(0.4)) setCell(x, y, E.BOSLUK);
+      return;
+    }
+  }
+}
+
+// KAR ──────────────────────────────────────────
+function updateKar(x, y, i) {
+  const nb = [[x,y-1],[x,y+1],[x-1,y],[x+1,y]];
+  for (const [nx, ny] of nb) {
+    const t = gType(nx, ny);
+    if ((t === E.ATES || t === E.LAV) && prob(0.12)) { setCell(x, y, E.SU); return; }
+  }
+
+  if (prob(0.6)) {
+    const b = gType(x, y+1);
+    if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+    const d = dirToggle ? 1 : -1;
+    if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+    if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+  }
+}
+
+// KÜL ──────────────────────────────────────────
+function updateKul(x, y, i) {
+  if (prob(0.08)) {
+    const b = gType(x, y+1);
+    if (b === E.BOSLUK) { moveCell(x, y, x, y+1); return; }
+    const d = dirToggle ? 1 : -1;
+    if (gType(x-d, y+1) === E.BOSLUK) { moveCell(x, y, x-d, y+1); return; }
+    if (gType(x+d, y+1) === E.BOSLUK) { moveCell(x, y, x+d, y+1); return; }
+  }
+}
+
+// DUMAN ────────────────────────────────────────
+function updateDuman(x, y, i) {
+  let life = extraArr[i];
+  if (life <= 1) { setCell(x, y, E.BOSLUK); return; }
+  extraArr[i] = life - 1;
+
+  if (prob(0.35)) {
+    const dx = ((Math.random()*3|0) - 1);
+    if (gType(x+dx, y-1) === E.BOSLUK) moveCell(x, y, x+dx, y-1);
+    else if (gType(x, y-1) === E.BOSLUK) moveCell(x, y, x, y-1);
+  }
+
+  // Soluklaşan renk
+  const a = (life / 150);
+  const v = 50 + (40 * a | 0);
+  colorArr[i*3] = v; colorArr[i*3+1] = v; colorArr[i*3+2] = v + 12;
+}
+
+// BUHAR ────────────────────────────────────────
+function updateBuhar(x, y, i) {
+  let life = extraArr[i];
+  if (life <= 1) { setCell(x, y, E.BOSLUK); return; }
+  extraArr[i] = life - 1;
+
+  if (prob(0.55)) {
+    const dx = ((Math.random()*3|0) - 1);
+    if (gType(x+dx, y-1) === E.BOSLUK) moveCell(x, y, x+dx, y-1);
+    else if (gType(x, y-1) === E.BOSLUK) moveCell(x, y, x, y-1);
+  }
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+let imgData, imgPx;
+
+function render() {
+  const BG_R = 7, BG_G = 7, BG_B = 14;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const ci = idx(x, y);
+      const t  = typeArr[ci];
+      const r  = t === E.BOSLUK ? BG_R : colorArr[ci*3];
+      const g  = t === E.BOSLUK ? BG_G : colorArr[ci*3+1];
+      const b  = t === E.BOSLUK ? BG_B : colorArr[ci*3+2];
+
+      const baseX = x * CELL;
+      const baseY = y * CELL;
+      for (let py = 0; py < CELL; py++) {
+        let pi = ((baseY + py) * canvas.width + baseX) * 4;
+        for (let px = 0; px < CELL; px++) {
+          imgPx[pi]   = r;
+          imgPx[pi+1] = g;
+          imgPx[pi+2] = b;
+          // alpha already 255
+          pi += 4;
+        }
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ─────────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────────
+const USER_ELS = EL_DEFS.filter(d => d.id !== E.DUMAN && d.id !== E.BUHAR);
+
+let selectedEl = E.KUM;
+let brushSize  = 4;
+let paused     = false;
+
+function buildUI() {
+  const grid = document.getElementById('el-grid');
+  grid.innerHTML = '';
+
+  USER_ELS.forEach((el, idx2) => {
+    const btn = document.createElement('div');
+    btn.className = 'el-btn' + (el.id === selectedEl ? ' active' : '');
+    btn.dataset.elid = el.id;
+
+    // Swatch canvas
+    const sw = document.createElement('canvas');
+    sw.className = 'el-swatch';
+    sw.width = 30; sw.height = 22;
+    const sc = sw.getContext('2d');
+
+    if (el.id === E.BOSLUK) {
+      sc.fillStyle = '#1a1a2e';
+      sc.fillRect(0,0,30,22);
+      sc.strokeStyle = '#404060';
+      sc.lineWidth = 1.5;
+      sc.strokeRect(4,3,22,16);
+      sc.fillStyle = '#606090';
+      sc.font = 'bold 13px sans-serif';
+      sc.textAlign = 'center';
+      sc.textBaseline = 'middle';
+      sc.fillText('✕', 15, 11);
+    } else {
+      const [r2,g2,b2] = el.renk;
+      const grad = sc.createLinearGradient(0,0,0,22);
+      grad.addColorStop(0, `rgb(${Math.min(255,r2+35)},${Math.min(255,g2+35)},${Math.min(255,b2+35)})`);
+      grad.addColorStop(1, `rgb(${Math.max(0,r2-25)},${Math.max(0,g2-25)},${Math.max(0,b2-25)})`);
+      sc.fillStyle = grad;
+      sc.beginPath();
+      sc.roundRect ? sc.roundRect(1,1,28,20,4) : sc.rect(1,1,28,20);
+      sc.fill();
+      // Parlaklık
+      sc.fillStyle = 'rgba(255,255,255,0.12)';
+      sc.beginPath();
+      sc.ellipse(15,6,9,3,0,0,Math.PI*2);
+      sc.fill();
+    }
+
+    const name = document.createElement('div');
+    name.className = 'el-name';
+    name.textContent = el.ad;
+
+    if (idx2 < 9) {
+      const hk = document.createElement('div');
+      hk.className = 'hotkey';
+      hk.textContent = idx2 + 1;
+      btn.appendChild(hk);
+    }
+
+    btn.appendChild(sw);
+    btn.appendChild(name);
+
+    btn.addEventListener('click', () => {
+      selectedEl = el.id;
+      document.querySelectorAll('.el-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('brush-range').addEventListener('input', e => {
+    brushSize = parseInt(e.target.value);
+    document.getElementById('brush-val').textContent = brushSize;
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    typeArr.fill(0); colorArr.fill(0); extraArr.fill(0);
+  });
+
+  const pauseBtn = document.getElementById('btn-pause');
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    pauseBtn.textContent = paused ? '▶ Devam' : '⏸ Durdur';
+  });
+}
+
+function selectEl(id) {
+  selectedEl = id;
+  document.querySelectorAll('.el-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.elid) === id);
+  });
+}
+
+// Klavye kısayolları
+document.addEventListener('keydown', e => {
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= 9 && n <= USER_ELS.length) selectEl(USER_ELS[n-1].id);
+  if (e.key === ' ') {
+    e.preventDefault();
+    paused = !paused;
+    document.getElementById('btn-pause').textContent = paused ? '▶ Devam' : '⏸ Durdur';
+  }
+  if (e.key === 'c' || e.key === 'C') {
+    typeArr.fill(0); colorArr.fill(0); extraArr.fill(0);
+  }
+});
+
+// ─────────────────────────────────────────────
+// GİRİŞ
+// ─────────────────────────────────────────────
+let drawing = false;
+let lastGX = -1, lastGY = -1;
+
+function cellOf(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  const sx = canvas.width  / r.width;
+  const sy = canvas.height / r.height;
+  return [
+    Math.floor((clientX - r.left) * sx / CELL),
+    Math.floor((clientY - r.top)  * sy / CELL)
+  ];
+}
+
+function paint(gx, gy) {
+  const R = brushSize;
+  for (let dy = -R; dy <= R; dy++) {
+    for (let dx = -R; dx <= R; dx++) {
+      if (dx*dx + dy*dy > R*R) continue;
+      const nx = gx + dx, ny = gy + dy;
+      if (!inB(nx, ny)) continue;
+      if (selectedEl === E.BOSLUK) {
+        const i = idx(nx, ny);
+        typeArr[i] = 0; extraArr[i] = 0;
+        colorArr[i*3] = colorArr[i*3+1] = colorArr[i*3+2] = 0;
+      } else {
+        const ex =
+          selectedEl === E.ATES  ? 160 + (Math.random()*80|0) :
+          selectedEl === E.DUMAN ? 80  + (Math.random()*60|0) :
+          selectedEl === E.BUHAR ? 80  + (Math.random()*60|0) : 0;
+        setCell(nx, ny, selectedEl, ex);
+      }
+    }
+  }
+}
+
+function paintLine(x0, y0, x1, y1) {
+  const steps = Math.max(Math.abs(x1-x0), Math.abs(y1-y0), 1);
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps;
+    paint(Math.round(x0 + (x1-x0)*t), Math.round(y0 + (y1-y0)*t));
+  }
+}
+
+canvas.addEventListener('mousedown', e => {
+  drawing = true;
+  const [gx, gy] = cellOf(e.clientX, e.clientY);
+  paint(gx, gy); lastGX = gx; lastGY = gy;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const [gx, gy] = cellOf(e.clientX, e.clientY);
+  paintLine(lastGX, lastGY, gx, gy);
+  lastGX = gx; lastGY = gy;
+});
+canvas.addEventListener('mouseup',    () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); drawing = true;
+  const [gx, gy] = cellOf(e.touches[0].clientX, e.touches[0].clientY);
+  paint(gx, gy); lastGX = gx; lastGY = gy;
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault(); if (!drawing) return;
+  const [gx, gy] = cellOf(e.touches[0].clientX, e.touches[0].clientY);
+  paintLine(lastGX, lastGY, gx, gy);
+  lastGX = gx; lastGY = gy;
+}, { passive: false });
+canvas.addEventListener('touchend', () => drawing = false);
+
+// ─────────────────────────────────────────────
+// ANA DÖNGÜ
+// ─────────────────────────────────────────────
+let lastT = 0, fpsFrames = 0, fpsLast = 0, fpsVal = 0;
+
+function countParticles() {
+  let n = 0;
+  for (let i = 0; i < typeArr.length; i++) if (typeArr[i]) n++;
+  return n;
+}
+
+function loop(ts) {
+  fpsFrames++;
+  if (ts - fpsLast > 600) {
+    fpsVal = Math.round(fpsFrames * 1000 / (ts - fpsLast));
+    fpsFrames = 0; fpsLast = ts;
+    document.getElementById('stats').textContent =
+      `FPS: ${fpsVal} | ${countParticles().toLocaleString('tr')} parçacık`;
+  }
+
+  if (!paused) updateSim();
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ─────────────────────────────────────────────
+// BAŞLAT
+// ─────────────────────────────────────────────
+setupGrid();
+buildUI();
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { setupGrid(); buildUI(); }, 200);
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
